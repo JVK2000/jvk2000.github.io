@@ -1,1 +1,345 @@
-Hello World
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0">
+	<title>AfasiShell</title>
+	<script type="text/javascript" src="https://alcdn.msftauth.net/browser/2.22.1/js/msal-browser.min.js" crossorigin="anonymous"></script>
+	<!-- MSAL authentication script -->
+	<script>
+		const queryParams 	  = new URLSearchParams(window.location.search);
+		const func_scope      = "https://liopepb2cdev.onmicrosoft.com/e17bea93-5730-482a-ae57-dc3cd33d7863/user_impersonation"
+		const cancel_URI      = "http://localhost:8060/"
+		// javascript-obfuscator:disable
+		const client_URI      = "http://localhost:8060/tmp_js_export.html"
+		// javascript-obfuscator:enable
+		const tenant_ID       = "523dc03c-5335-4b2a-82a3-0c27aa4bf525"
+		const authorityDomain = "liopepb2cdev.b2clogin.com"
+		const authority_URI   = "https://liopepb2cdev.b2clogin.com/tfp/liopepb2cdev.onmicrosoft.com/"
+		const sign_in_flow    = "B2C_1_liopep_login_dev"
+		const register_flow   = "B2C_1_liopep_register_dev"
+		const config     	  = {
+			msal: {
+				auth: {
+					clientId: "9caa424c-2021-480a-8687-7b7362805f3e", // This is the client ID of your FRONTEND application that you registered with the SPA type in AAD B2C
+					authority:  authority_URI + sign_in_flow, 		  // The default user flow
+					redirectUri: client_URI,
+					knownAuthorities: [authorityDomain],
+					postLogoutRedirectUri: cancel_URI
+				},
+				cache: {
+					cacheLocation: "localStorage",
+					storeAuthStateInCookie: false
+				}
+			},
+			system: {
+				iframeHashTimeout: 15000 // How fast we timeout from a redirect
+			}
+		}
+		const pca = new msal.PublicClientApplication(config.msal);
+
+		// We fetch the chosen language to send to msal
+		let ui_locales = queryParams.get('lang') || queryParams.get('locale') || navigator.language || navigator.userLanguage;
+		if (typeof ui_locales === 'undefined' || ui_locales === '' || ui_locales === null) ui_locales = 'sv';
+
+		let curr_acc		 = { accountId: "", email: "", display_name: "" }
+		let loginRequest     = { scopes: ["openid", "offline_access"], extraQueryParameters: { ui_locales: ui_locales } }
+		let funcTokenRequest = { scopes: [func_scope], extraQueryParameters: { ui_locales: ui_locales } }
+
+		// Saves the relevant account values locally.
+		function setCurrentAccount(account) {
+			curr_acc.accountId 	  = account.homeAccountId;
+			curr_acc.email		  = account.idTokenClaims.emails[0];
+			curr_acc.display_name = account.name;
+		}
+
+		// Selects the correct account to use for authentication
+		function selectAccount() {
+			const accounts = pca.getAllAccounts();
+			if (typeof accounts === 'undefined' || accounts.length === 0) {
+				// We redirect the user to our login page if no user is authenticated
+				getAuthentication();
+			} else if (accounts.length > 1) {
+				// If more than one account is logged in, we must ensure that they're of the same user.
+				const ourAccounts = accounts.filter(account =>
+					account.homeAccountId.toUpperCase().includes(sign_in_flow.toUpperCase())
+					&&
+					account.homeAccountId.toUpperCase().includes(tenant_ID.toUpperCase())
+					&&
+					account.idTokenClaims.iss.toUpperCase().includes(authorityDomain.toUpperCase())
+					&&
+					account.idTokenClaims.aud === config.msal.auth.clientId
+				);
+				if (ourAccounts.length > 1) {
+					if (ourAccounts.every(account => account.localAccountId === ourAccounts[0].localAccountId)) {
+						setCurrentAccount(ourAccounts[0]);
+					}
+					// We have multiple users logged in, so the user will have to log in once more.
+					else revokeAuthentication(shouldReturn=true);
+
+				} else if (ourAccounts.length === 1) { 
+					setCurrentAccount(ourAccounts[0]); 
+				}
+				else revokeAuthentication(shouldReturn=true);
+			}
+			else if (accounts.length === 1) {
+				setCurrentAccount(accounts[0]);
+			}
+		}
+
+		// Ensure that we have a user that has logged in
+		async function getAuthentication() {
+			if (queryParams.has('trial') && queryParams.get('trial') === "true") {
+				let registerRequest = Object.assign({}, loginRequest, {authority: authority_URI + register_flow});
+				pca.loginRedirect(registerRequest);
+				return;
+			}
+			pca.loginRedirect(loginRequest);
+		}
+
+		// Log out all users, effectively revoking their authentication
+		function revokeAuthentication(shouldReturn=false) {
+			let logoutRequest = { extraQueryParameters:  { ui_locales: ui_locales } };
+			if (shouldReturn) logoutRequest['postLogoutRedirectUri'] = client_URI; // We can ask to return here directly
+			pca.logoutRedirect(logoutRequest);
+		}
+
+		// Acquires the wanted access token
+		async function getAccessToken(request) {
+			request.account = pca.getAccountByHomeId(curr_acc.accountId);
+
+			return pca.acquireTokenSilent(request).then((response) => {
+				// We check that the response actually contains an access token
+				if (typeof response.accessToken === 'undefined' || response.accessToken === "") {
+					throw new msal.InteractionRequiredAuthError;
+				}
+				return response;
+			})
+			.catch(
+				error => {
+					if (error instanceof msal.InteractionRequiredAuthError) {
+						pca.acquireTokenRedirect(request);
+					}
+					else if (error.errorCode === "no_account_error") {
+						getAuthentication();
+					}
+					else if (error.errorCode === "monitor_window_timeout") {
+						pca.acquireTokenRedirect(request);
+					}
+					else {
+						console.log(error.errorCode);
+						console.log(error);
+					}
+				}
+			);
+		}
+
+		// Returns the access token needed to reach our functions.
+		async function getFuncToken() {
+			var response = await getAccessToken(funcTokenRequest);
+			if (typeof response !== 'undefined' && response !== null) {
+				if (typeof response.accessToken !== 'undefined') {
+					return response.accessToken;
+				}
+				else {
+					if (verbose) console.log(response);
+				}
+			}
+			else {
+				console.log("No response returned.");
+			}
+		}
+
+		// Handles a potential response from msal
+		function handleResponse(response) {
+			if (typeof response !== 'undefined' && response !== null) {
+				// If we're redirected, we have a response from msal
+				if (typeof response.account !== 'undefined') {
+					// If it's from an authentication redirect
+					setCurrentAccount(response.account);
+				}
+				if (typeof response.accessToken !== 'undefined') {
+					// If it's from a token redirect
+					return response.accessToken;
+				}
+			}
+			else {
+				// If not, we try to select an authenticated account instead
+				selectAccount();
+			}
+		}
+
+		// Handles errors from a redirect.
+		function handleError(error) {
+			if (error.errorCode === "access_denied") {
+				if (error.errorMessage.includes("AADB2C90091")) {
+					// The user has cancelled the user flow.
+					getAuthentication();
+				}
+				else {
+					console.log(error);
+					revokeAuthentication(shouldReturn=true);
+				}
+			}
+			else {
+				console.log(error.errorCode);
+				console.log(error);
+			}
+		}
+
+		// This must run at every page-load to ensure that our redirects gets handled correctly
+		async function handleRedirect() {
+			return pca.handleRedirectPromise().then(handleResponse).catch(handleError);
+		}
+	</script>
+	<!-- Import LLM scripts from blob storage -->
+	<script type="module" src="https://asdfgertyuiojkl.blob.core.windows.net/levla-upp/models/hugging_face.js"></script>
+	<script type="module" src="https://asdfgertyuiojkl.blob.core.windows.net/levla-upp/models/bert.js"></script>	
+	<style>
+		html, body, #canvas {
+			margin: 0;
+			padding: 0;
+			border: 0;
+		}
+
+		body {
+			color: white;
+			background-color: black;
+			overflow: hidden;
+			touch-action: none;
+		}
+
+		#canvas {
+			display: block;
+		}
+
+		#canvas:focus {
+			outline: none;
+		}
+
+		#status, #status-splash, #status-progress {
+			position: absolute;
+			left: 0;
+			right: 0;
+		}
+
+		#status, #status-splash {
+			top: 0;
+			bottom: 0;
+		}
+
+		#status {
+			background-color: #242424;
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+			visibility: hidden;
+		}
+
+		#status-splash {
+			max-height: 100%;
+			max-width: 100%;
+			margin: auto;
+		}
+
+		#status-progress, #status-notice {
+			display: none;
+		}
+
+		#status-progress {
+			bottom: 10%;
+			width: 50%;
+			margin: 0 auto;
+		}
+
+		#status-notice {
+			background-color: #5b3943;
+			border-radius: 0.5rem;
+			border: 1px solid #9b3943;
+			color: #e0e0e0;
+			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+			line-height: 1.3;
+			margin: 0 2rem;
+			overflow: hidden;
+			padding: 1rem;
+			text-align: center;
+			z-index: 1;
+		}
+	</style>
+	<link id="-gd-engine-icon" rel="icon" type="image/png" href="index.icon.png" />
+<link rel="apple-touch-icon" href="index.apple-touch-icon.png"/>
+
+</head>
+<body>
+	<canvas id="canvas">
+		Your browser does not support the canvas tag.
+	</canvas>
+
+	<noscript>
+		Your browser does not support JavaScript.
+	</noscript>
+
+	<div id="status">
+		<img id="status-splash" src="index.png" alt="">
+		<progress id="status-progress"></progress>
+		<div id="status-notice"></div>
+	</div>
+
+	<!--<script src="index.js"></script>-->
+	<script>
+		async function getArrayBuffer(path) {
+			// This script allows us to download binary files from our dedicated blob storage.
+			try {
+				const response = await fetch(path, {
+					headers: {
+						"Content-Type":  "application/octet-stream",
+						"x-ms-version":  "2017-11-09",
+						"Cache-Control": "private, no-store, max-age=0"
+					} 
+				});
+				if (!response.ok) {
+					throw new Error(`Response status: ${response.status}`);
+				}
+				const buffer = await response.arrayBuffer();
+				return buffer;
+			} catch (error) {
+				console.error(error.message);
+			}
+		}
+		
+		// javascript-obfuscator:disable
+		const levla_upp_URI = "http://localhost:8060/tmp_js_export.html"
+		// javascript-obfuscator:enable
+
+		const storage_url = 'https://asdfgertyuiojkl.blob.core.windows.net/levla-upp/dev/';
+		const myWasm 	  = 'tmp_js_export';	 // Local version
+		const myPck  	  = 'tmp_js_export.pck'; // Local version
+		
+		// Game packages
+		const word_image  	= 'packages/word_image.pck';
+		const hear_word	  	= 'packages/hear_word.pck';
+		const say_word	  	= 'packages/say_word.pck';
+		const interview	  	= 'packages/interview.pck';
+		const option_select	= 'packages/option_select.pck';
+
+		import('/index.js').then(() => {
+			const engine = new Engine();
+			engine.init(myWasm).then(() => Promise.all([
+				getArrayBuffer(myPck)		    	  	 .then((buffer) => engine.preloadFile(buffer, myPck)),
+				getArrayBuffer(storage_url+word_image)	 .then((buffer) => engine.preloadFile(buffer, word_image)),
+				getArrayBuffer(storage_url+hear_word) 	 .then((buffer) => engine.preloadFile(buffer, hear_word)),
+				getArrayBuffer(storage_url+say_word) 	 .then((buffer) => engine.preloadFile(buffer, say_word)),
+				getArrayBuffer(storage_url+interview)  	 .then((buffer) => engine.preloadFile(buffer, interview)),
+				getArrayBuffer(storage_url+option_select).then((buffer) => engine.preloadFile(buffer, option_select)),
+			]).then(
+				handleRedirect
+			).then(() => {
+				return engine.start({ args: ['--main-pack', myPck] });
+			}).then(() => {
+				console.log('Engine has started!');
+			}));
+		});
+	</script>
+</body>
+</html>
