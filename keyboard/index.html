@@ -23,7 +23,10 @@
 
             const myWasm = 'index';
             const myPck = 'index.pck';
-            const engine = new Engine();
+            // const engine = new Engine();
+			const engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]});
+            console.log("{"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]}: ", {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]})
+
             Promise.all([
                 // Load and init the engine
                 engine.init(myWasm),
