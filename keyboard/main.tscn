@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://d01ov32heb7m3"]
+[gd_scene load_steps=2 format=3 uid="uid://d01ov32heb7m3"]
+
+[ext_resource type="Script" uid="uid://bob6ghe3dgxyc" path="res://main.gd" id="1_ig7tw"]
 
 [node name="Main" type="Control"]
 layout_mode = 3
@@ -7,6 +9,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
+script = ExtResource("1_ig7tw")
 
 [node name="TextEdit" type="TextEdit" parent="."]
 custom_minimum_size = Vector2(512, 80)
