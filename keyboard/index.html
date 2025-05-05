@@ -17,8 +17,25 @@
 		<canvas id="canvas"></canvas>
 		<script src="index.js"></script>
 		<script>
-			var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":7696,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]});
-			engine.startGame();
+			// var engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]});
+			// engine.startGame();
+
+
+            const myWasm = 'tmp_js_export';
+            const myPck = 'tmp_js_export.pck';
+            const engine = new Engine();
+            Promise.all([
+                // Load and init the engine
+                engine.init(myWasm),
+                // And the pck concurrently
+                engine.preloadFile(myPck),
+            ]).then(() => {
+                // Now start the engine.
+                return engine.start({ args: ['--main-pack', myPck] });
+            }).then(() => {
+                console.log('Engine has started!');
+            });
+
 		</script>
 	</body>
 </html>
