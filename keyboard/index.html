@@ -21,27 +21,42 @@
 			// engine.startGame();
 
 
-            const myWasm = 'index';
-            const myPck = 'index.pck';
+            // const myWasm = 'index';
+            // const myPck = 'index.pck';
+            const myWasm = 'tmp_js_export';
+            const myPck = 'tmp_js_export.pck';
+            const engine = new Engine();
 			// const engine = new Engine({"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]});
             // console.log("{"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]}: ", {"args":[],"canvasResizePolicy":2,"ensureCrossOriginIsolationHeaders":true,"executable":"index","experimentalVK":true,"fileSizes":{"index.pck":31568,"index.wasm":52126319},"focusCanvas":true,"gdextensionLibs":[]})
             
-            import('/index.js').then(() => {
-                
-                const engine = new Engine();
+            // Promise.all([
+            //     // Load and init the engine
+            //     engine.init(myWasm),
+            //     // And the pck concurrently
+            //     engine.preloadFile(myPck),
+            // ]).then(() => {
+            //     // Now start the engine.
+            //     return engine.start({ args: ['--main-pack', myPck] });
+            // }).then(() => {
+            //     console.log('Engine has started!');
+            // });
             
-                Promise.all([
-                    // Load and init the engine
-                    engine.init(myWasm),
-                    // And the pck concurrently
-                    engine.preloadFile(myPck),
-                ]).then(() => {
-                    // Now start the engine.
-                    return engine.start({ args: ['--main-pack', myPck] });
-                }).then(() => {
-                    console.log('Engine has started!');
-                })
+            
+            Promise.all([
+                engine.init(myWasm),
+                engine.preloadFile(myPck),
+            ]).then(() => {
+                return engine.start({
+                    args: ['--main-pack', myPck],
+                    // you can also pass overrides here:
+                    html: { experimental_virtual_keyboard: true },
+                    "experimentalVK":true,
+                });
+            }).then(() => {
+                console.log('Engine has started!');
+                // console.log('Engine has started with virtual keyboard support!');
             });
+
 		</script>
 	</body>
 </html>
