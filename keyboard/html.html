@@ -21,24 +21,27 @@
 			// engine.startGame();
 
 
-            const myWasm = 'index';
-            const myPck = 'index.pck';
-            // const engine = new Engine();
-			const engine = new Engine($GODOT_CONFIG);
+            const myWasm = 'tmp_js_export';
+            const myPck = 'tmp_js_export.pck';
+			// const engine = new Engine($GODOT_CONFIG);
             // console.log("$GODOT_CONFIG: ", $GODOT_CONFIG)
-
-            Promise.all([
-                // Load and init the engine
-                engine.init(myWasm),
-                // And the pck concurrently
-                engine.preloadFile(myPck),
-            ]).then(() => {
-                // Now start the engine.
-                return engine.start({ args: ['--main-pack', myPck] });
-            }).then(() => {
-                console.log('Engine has started!');
+            
+            import('/$GODOT_URL').then(() => {
+                
+                const engine = new Engine();
+            
+                Promise.all([
+                    // Load and init the engine
+                    engine.init(myWasm),
+                    // And the pck concurrently
+                    engine.preloadFile(myPck),
+                ]).then(() => {
+                    // Now start the engine.
+                    return engine.start({ args: ['--main-pack', myPck] });
+                }).then(() => {
+                    console.log('Engine has started!');
+                })
             });
-
 		</script>
 	</body>
 </html>
