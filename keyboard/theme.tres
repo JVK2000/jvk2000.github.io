@@ -1,0 +1,4 @@
+[gd_resource type="Theme" format=3 uid="uid://bbh0vnj00nuhm"]
+
+[resource]
+TextEdit/constants/caret_width = 5

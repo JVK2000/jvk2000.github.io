@@ -1,0 +1,22 @@
+[gd_scene load_steps=2 format=3 uid="uid://dad6koyemk5gy"]
+
+[ext_resource type="Texture2D" uid="uid://cyhev4w6kfhji" path="res://icon.svg" id="1_wb47r"]
+
+[node name="HBoxContainer" type="HBoxContainer"]
+custom_minimum_size = Vector2(500, 100)
+offset_right = 40.0
+offset_bottom = 40.0
+
+[node name="Label" type="Label" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 50
+text = "1"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Texture" type="TextureRect" parent="."]
+layout_mode = 2
+size_flags_horizontal = 3
+texture = ExtResource("1_wb47r")
+stretch_mode = 5
