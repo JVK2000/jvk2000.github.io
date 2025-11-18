@@ -48,9 +48,7 @@
             ]).then(() => {
                 return engine.start({
                     args: ['--main-pack', myPck],
-                    // you can also pass overrides here:
-                    // html: { experimental_virtual_keyboard: true },
-                    "experimentalVK":true,
+                    experimentalVK: true,
                 });
             }).then(() => {
                 console.log('Engine has started!');
